@@ -118,7 +118,7 @@ export class Renderer {
       drawText(ctx, `${prefix}${item}`, MID_X, y, 20, color, 'center')
     })
 
-    drawText(ctx, 'v0.9.0', MID_X, BOTTOM_Y + 82, 12, '#555', 'center')
+    drawText(ctx, 'v0.10.0', MID_X, BOTTOM_Y + 82, 12, '#555', 'center')
 
     await this.sendTiles()
   }
