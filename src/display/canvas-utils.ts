@@ -1,94 +1,143 @@
 // ─── G2 Display Constants ───────────────────────────────────
 
-export const CANVAS_W = 576
-export const CANVAS_H = 288
+// G2 SDK hardware limits per image container
+export const G2_IMAGE_MAX_W = 200
+export const G2_IMAGE_MAX_H = 100
 
-export const TILE_COLS = 2
-export const TILE_ROWS = 2
+// Tile size: max allowed by G2
+export const TILE_W = 200
+export const TILE_H = 100
 
-// Full-screen rendering — SDK allows up to 288×144 per image container
-export const RENDER_W = 576
-export const RENDER_H = 288
-export const RENDER_TILE_W = RENDER_W / 2 // 288
-export const RENDER_TILE_H = RENDER_H / 2 // 144
+// Board canvas: 400×200 = exactly what 3 tiles cover (no scaling needed)
+//   Top tile:         center of top half (200×100, x=100..300, y=0..100)
+//   Bottom-left:      left of bottom half (200×100, x=0..200, y=100..200)
+//   Bottom-right:     right of bottom half (200×100, x=200..400, y=100..200)
+export const RENDER_W = 400
+export const RENDER_H = 200
+
+// Tile count: 3 images + 1 text = 4 containers (G2 max)
+export const TILE_COUNT = 3
+
+// Positions on the G2 display (576×288) where tiles appear.
+// The 400×200 board is centered: offset = (576-400)/2 = 88, (288-200)/2 = 44
+const SCREEN_W = 576
+const SCREEN_H = 288
+const BOARD_OFFSET_X = Math.floor((SCREEN_W - RENDER_W) / 2) // 88
+const BOARD_OFFSET_Y = Math.floor((SCREEN_H - RENDER_H) / 2) // 44
+
+// Image container definitions on G2 display
+export const IMAGE_TILE_TOP = {
+  id: 1,
+  name: 'tile-top',
+  // Top tile: centered at top = only center 200px visible
+  x: BOARD_OFFSET_X + 100,           // 188
+  y: BOARD_OFFSET_Y,                  // 44
+  width: TILE_W,                       // 200
+  height: TILE_H,                     // 100
+}
+
+export const IMAGE_TILE_BOTTOM_LEFT = {
+  id: 2,
+  name: 'tile-bl',
+  x: BOARD_OFFSET_X,                  // 88
+  y: BOARD_OFFSET_Y + TILE_H,         // 144
+  width: TILE_W,                       // 200
+  height: TILE_H,                     // 100
+}
+
+export const IMAGE_TILE_BOTTOM_RIGHT = {
+  id: 3,
+  name: 'tile-br',
+  x: BOARD_OFFSET_X + TILE_W,         // 288
+  y: BOARD_OFFSET_Y + TILE_H,         // 144
+  width: TILE_W,                       // 200
+  height: TILE_H,                     // 100
+}
+
+// Event capture text container
+export const EVENT_TEXT_CONTAINER = {
+  id: 4,
+  name: 'events',
+  x: 0,
+  y: 0,
+  width: BOARD_OFFSET_X > 20 ? BOARD_OFFSET_X : 88,
+  height: SCREEN_H,
+}
 
 // ─── PNG Tile Data ──────────────────────────────────────────
 
 export interface TileData {
-  index: number
-  x: number
-  y: number
-  width: number
-  height: number
+  id: number
+  name: string
   pngBytes: number[]
   hash: number
 }
 
-// ─── Tile Slicing (PNG encoded) ─────────────────────────────
+// ─── Tile Slicing (1:1 crops from 400×200 canvas) ───────────
 
 /**
- * Slice a canvas into tiles and encode each as PNG bytes.
- * This is the format expected by the G2 SDK/simulator.
+ * Slice a 400×200 canvas into 3 tiles at 200×100 each.
+ * No scaling — pixel-perfect 1:1 mapping.
+ *
+ * Layout on canvas:
+ *   Row 0 (0..100):   [left 200 invisible] [center 200 = top tile] [right invisible]
+ *   Row 1 (100..200):  [left 200 = BL tile] [right 200 = BR tile]
  */
 export async function sliceToTiles(canvas: HTMLCanvasElement): Promise<TileData[]> {
   const tiles: TileData[] = []
 
-  for (let row = 0; row < TILE_ROWS; row++) {
-    for (let col = 0; col < TILE_COLS; col++) {
-      const x = col * RENDER_TILE_W
-      const y = row * RENDER_TILE_H
+  // Top tile: center 200×100 of top half (x=100..300, y=0..100)
+  tiles.push(await cropToTile(canvas, 100, 0, TILE_W, TILE_H, IMAGE_TILE_TOP.id, IMAGE_TILE_TOP.name))
 
-      // Create a small canvas for this tile
-      const tileCanvas = document.createElement('canvas')
-      tileCanvas.width = RENDER_TILE_W
-      tileCanvas.height = RENDER_TILE_H
-      const tileCtx = tileCanvas.getContext('2d')!
+  // Bottom-left tile (x=0..200, y=100..200)
+  tiles.push(await cropToTile(canvas, 0, 100, TILE_W, TILE_H, IMAGE_TILE_BOTTOM_LEFT.id, IMAGE_TILE_BOTTOM_LEFT.name))
 
-      // Copy the tile region from the main canvas
-      tileCtx.drawImage(canvas, x, y, RENDER_TILE_W, RENDER_TILE_H, 0, 0, RENDER_TILE_W, RENDER_TILE_H)
-
-      // Encode as PNG
-      const pngBytes = await canvasToPngBytes(tileCanvas)
-      const hash = fnv32(pngBytes)
-
-      tiles.push({
-        index: row * TILE_COLS + col,
-        x,
-        y,
-        width: RENDER_TILE_W,
-        height: RENDER_TILE_H,
-        pngBytes,
-        hash,
-      })
-    }
-  }
+  // Bottom-right tile (x=200..400, y=100..200)
+  tiles.push(await cropToTile(canvas, 200, 100, TILE_W, TILE_H, IMAGE_TILE_BOTTOM_RIGHT.id, IMAGE_TILE_BOTTOM_RIGHT.name))
 
   return tiles
 }
 
+async function cropToTile(
+  source: HTMLCanvasElement,
+  sx: number, sy: number, sw: number, sh: number,
+  id: number, name: string,
+): Promise<TileData> {
+  const tileCanvas = document.createElement('canvas')
+  tileCanvas.width = sw
+  tileCanvas.height = sh
+  const ctx = tileCanvas.getContext('2d')!
+  // 1:1 crop — no scaling
+  ctx.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh)
+
+  const pngBytes = await canvasToPngBytes(tileCanvas)
+  const hash = fnv32(pngBytes)
+
+  return { id, name, pngBytes, hash }
+}
+
 // ─── Canvas → PNG Bytes ─────────────────────────────────────
 
-/**
- * Convert canvas content to PNG byte array via toBlob.
- */
 function canvasToPngBytes(canvas: HTMLCanvasElement): Promise<number[]> {
   return new Promise((resolve) => {
-    canvas.toBlob(
-      async (blob) => {
-        if (!blob) {
-          resolve([])
-          return
-        }
-        const buffer = await blob.arrayBuffer()
-        const bytes = new Uint8Array(buffer)
-        const out: number[] = new Array(bytes.length)
-        for (let i = 0; i < bytes.length; i++) {
-          out[i] = bytes[i]
-        }
-        resolve(out)
-      },
-      'image/png',
-    )
+    try {
+      const dataUrl = canvas.toDataURL('image/png')
+      const base64 = dataUrl.split(',')[1]
+      if (!base64) {
+        console.error('[canvas-utils] toDataURL returned no data')
+        resolve([])
+        return
+      }
+      const binaryString = atob(base64)
+      const bytes: number[] = new Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+      resolve(bytes)
+    } catch (err) {
+      console.error('[canvas-utils] PNG encoding failed:', err)
+      resolve([])
+    }
   })
 }
 
@@ -105,9 +154,6 @@ function fnv32(data: number[]): number {
 
 // ─── Canvas Drawing Helpers ─────────────────────────────────
 
-/**
- * Draw text on canvas with consistent styling for G2.
- */
 export function drawText(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -124,9 +170,6 @@ export function drawText(
   ctx.fillText(text, x, y)
 }
 
-/**
- * Draw a horizontal line.
- */
 export function drawHLine(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -143,9 +186,6 @@ export function drawHLine(
   ctx.stroke()
 }
 
-/**
- * Clear the canvas to black (off pixels on G2).
- */
 export function clearCanvas(ctx: CanvasRenderingContext2D): void {
   ctx.fillStyle = '#000'
   ctx.fillRect(0, 0, RENDER_W, RENDER_H)

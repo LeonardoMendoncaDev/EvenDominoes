@@ -2,6 +2,7 @@ import { waitForEvenAppBridge, OsEventTypeList } from '@evenrealities/even_hub_s
 import type { GameState, GamePhase, PlayerType } from './engine/types'
 import { createGame, startRound, selectPiece, humanPlaceOnEnd, humanDraw, cpuTurn } from './engine/game'
 import { Renderer } from './display/renderer'
+import { beepTap, beepPlay, beepDraw, beepError, beepGameOver, beepWin, beepNav } from './audio/beep'
 
 // ─── Debug output ───────────────────────────────────────────
 
@@ -30,7 +31,7 @@ async function main(): Promise<void> {
     const phase: GamePhase = state.phase
     switch (phase) {
       case 'menu':
-        await renderer.renderMenu()
+        await renderer.renderMenu(menuCursor)
         break
       case 'playing':
       case 'cpu-thinking':
@@ -122,13 +123,17 @@ async function main(): Promise<void> {
       if (state.phase === 'menu' && !isRulesScreen) {
         if (isScrollUp(event)) {
           menuCursor = Math.max(0, menuCursor - 1)
+          beepNav()
+          await renderer.renderMenu(menuCursor)
         } else if (isScrollDown(event)) {
           menuCursor = Math.min(1, menuCursor + 1)
+          beepNav()
+          await renderer.renderMenu(menuCursor)
         } else if (isClick(event)) {
-          const selectedIdx = event.listEvent?.currentSelectItemIndex ?? menuCursor
-          if (selectedIdx === 0) {
+          beepTap()
+          if (menuCursor === 0) {
             await startNewGame()
-          } else if (selectedIdx === 1) {
+          } else if (menuCursor === 1) {
             isRulesScreen = true
             await renderer.renderRules()
           }
@@ -149,8 +154,10 @@ async function main(): Promise<void> {
       // ── Game Over ──
       if (state.phase === 'gameover') {
         if (isClick(event)) {
+          beepTap()
           await startNewGame()
         } else if (isDoubleClick(event)) {
+          beepTap()
           state.phase = 'menu'
           menuCursor = 0
           await render()
@@ -161,12 +168,14 @@ async function main(): Promise<void> {
       // ── Choose End ──
       if (state.phase === 'choose-end') {
         if (isClick(event)) {
+          beepPlay()
           humanPlaceOnEnd(state, 'left')
           await render()
           if (state.currentPlayer === 'cpu' && state.phase === ('playing' as GamePhase)) {
             await doCpuTurn()
           }
         } else if (isDoubleClick(event)) {
+          beepPlay()
           humanPlaceOnEnd(state, 'right')
           await render()
           if (state.currentPlayer === 'cpu' && state.phase === ('playing' as GamePhase)) {
@@ -180,12 +189,25 @@ async function main(): Promise<void> {
       if (state.phase === 'playing' && state.currentPlayer === 'human') {
         if (isScrollUp(event)) {
           state.cursor = Math.max(0, state.cursor - 1)
+          beepNav()
           await render()
         } else if (isScrollDown(event)) {
           state.cursor = Math.min(state.human.hand.length - 1, state.cursor + 1)
+          beepNav()
           await render()
         } else if (isClick(event)) {
+          const prevPhase = state.phase as string
           selectPiece(state)
+          // Beep based on result
+          if ((state.phase as string) === 'gameover') {
+            (state.winner as string) === 'human' ? beepWin() : beepGameOver()
+          } else if ((state.phase as string) !== prevPhase || (state.currentPlayer as string) === 'cpu') {
+            beepPlay()
+          } else if (state.message.includes('Cannot') || state.message.includes('invalid')) {
+            beepError()
+          } else {
+            beepTap()
+          }
           await render()
           if (
             (state.currentPlayer as PlayerType) === 'cpu' &&
@@ -194,6 +216,7 @@ async function main(): Promise<void> {
             await doCpuTurn()
           }
         } else if (isDoubleClick(event)) {
+          beepDraw()
           humanDraw(state)
           await render()
           if (
@@ -219,6 +242,10 @@ async function main(): Promise<void> {
       console.error('[Domino] Event handler error:', err)
     }
   })
+
+  // ── Create startup page with image containers (like EvenSolitaire) ──
+  await renderer.createStartupPage()
+  debug('Startup page created')
 
   // ── Initial render ──
   state.phase = 'menu'

@@ -1,28 +1,442 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Domino — G2 Plugin</title>
+    <title>Dominoes — Classic Game for Even Realities G2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      /* Hidden WebView — all rendering goes to G2 display via SDK */
+      :root {
+        --tc-1st: #232323;
+        --tc-2nd: #7B7B7B;
+        --tc-highlight: #FFFFFF;
+
+        --bc-1st: #FFFFFF;
+        --bc-2nd: #F6F6F6;
+        --bc-3rd: #EEEEEE;
+        --bc-4th: #E4E4E4;
+        --bc-accent: #C8F7C5;
+        --bc-highlight: #232323;
+
+        --bg-primary: var(--bc-3rd);
+        --bg-secondary: var(--bc-2nd);
+        --bg-card: var(--bc-1st);
+        --bg-tertiary: var(--bc-4th);
+        --text-primary: var(--tc-1st);
+        --text-secondary: var(--tc-2nd);
+        --accent: var(--bc-accent);
+        --accent-dark: #A8E6A3;
+        --border: var(--bc-4th);
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html { scroll-behavior: smooth; }
+
       body {
-        margin: 0;
-        padding: 20px;
-        background: #111;
-        color: #0f0;
-        font-family: monospace;
-        font-size: 14px;
+        font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.5;
+        min-height: 100vh;
+        font-size: 15px;
+        font-weight: 400;
+        letter-spacing: -0.15px;
+        -webkit-font-smoothing: antialiased;
       }
-      #debug {
-        white-space: pre-wrap;
-        opacity: 0.6;
+
+      .container {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 24px 12px;
       }
+
+      /* Header */
+      .header {
+        text-align: center;
+        padding: 24px 0;
+        margin-bottom: 24px;
+      }
+
+      .logo {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .logo-icon {
+        font-size: 48px;
+        line-height: 1;
+      }
+
+      .logo-text {
+        font-size: 24px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        color: var(--text-primary);
+      }
+
+      .subtitle {
+        color: var(--text-secondary);
+        font-size: 13px;
+        font-weight: 400;
+        margin-top: 8px;
+      }
+
+      /* Table of Contents */
+      .toc {
+        background: var(--bg-card);
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 24px;
+      }
+
+      .toc h2 {
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+      }
+
+      .toc-list {
+        list-style: none;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 6px;
+      }
+
+      .toc-list a {
+        color: var(--text-primary);
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 400;
+        display: block;
+        padding: 6px 10px;
+        background: var(--accent);
+        border-radius: 6px;
+        transition: background 0.2s, transform 0.2s;
+      }
+
+      .toc-list a:hover {
+        background: var(--accent-dark);
+        transform: translateY(-1px);
+      }
+
+      /* Sections */
+      .section { margin-bottom: 12px; }
+
+      details {
+        background: var(--bg-card);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      details[open] {
+        box-shadow: 0 0 0 2px var(--accent);
+      }
+
+      summary {
+        padding: 16px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 17px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        user-select: none;
+        list-style: none;
+        transition: background 0.2s;
+      }
+
+      summary::-webkit-details-marker { display: none; }
+
+      summary::before {
+        content: '▸';
+        font-size: 12px;
+        color: var(--text-primary);
+        background: var(--accent);
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: transform 0.2s;
+      }
+
+      details[open] summary::before {
+        transform: rotate(90deg);
+      }
+
+      summary:hover { background: var(--bg-secondary); }
+
+      .section-content {
+        padding: 0 16px 16px;
+        color: var(--text-secondary);
+      }
+
+      .section-content h3 {
+        color: var(--text-primary);
+        font-size: 15px;
+        font-weight: 500;
+        margin: 16px 0 8px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .section-content h3:first-child { margin-top: 0; }
+
+      .section-content p {
+        margin: 8px 0;
+        font-size: 15px;
+        font-weight: 300;
+      }
+
+      .section-content ul, .section-content ol {
+        margin: 8px 0 8px 20px;
+        font-size: 15px;
+        font-weight: 300;
+        padding-left: 8px;
+      }
+
+      .section-content li { margin: 6px 0; }
+
+      /* Gesture cards */
+      .gesture-grid {
+        display: grid;
+        gap: 6px;
+        margin: 12px 0;
+      }
+
+      .gesture-card {
+        background: var(--bg-secondary);
+        border-radius: 6px;
+        padding: 12px 16px;
+        font-size: 15px;
+        font-weight: 300;
+      }
+
+      .gesture-card strong {
+        color: var(--text-primary);
+        display: block;
+        margin-bottom: 4px;
+        font-weight: 500;
+      }
+
+      .tip {
+        background: var(--accent);
+        padding: 12px 16px;
+        margin: 12px 0;
+        border-radius: 6px;
+        font-size: 15px;
+        font-weight: 300;
+      }
+
+      .tip strong { color: var(--text-primary); font-weight: 500; }
+
+      .footer {
+        text-align: center;
+        padding: 24px 0;
+        margin-top: 24px;
+        color: var(--text-secondary);
+        font-size: 11px;
+      }
+
+      /* Hide debug output */
+      #debug { display: none; }
     </style>
   </head>
   <body>
-    <div id="debug">Domino — initializing...</div>
+    <div id="debug">Dominoes — initializing...</div>
     <canvas id="offscreen" width="576" height="288" style="display:none;"></canvas>
+
+    <div class="container">
+      <header class="header">
+        <div class="logo">
+          <span class="logo-icon">🁣</span>
+          <span class="logo-text">DOMINOES</span>
+        </div>
+        <p class="subtitle">Classic Double-Six Dominoes for Even Realities G2</p>
+      </header>
+
+      <nav class="toc">
+        <h2>Quick Navigation</h2>
+        <ul class="toc-list">
+          <li><a href="#getting-started">Getting Started</a></li>
+          <li><a href="#controls">Controls</a></li>
+          <li><a href="#gameplay">Gameplay Flow</a></li>
+          <li><a href="#rules">Rules</a></li>
+          <li><a href="#tips">Tips</a></li>
+        </ul>
+      </nav>
+
+      <section class="section" id="getting-started">
+        <details>
+          <summary>Getting Started</summary>
+          <div class="section-content">
+            <h3>Welcome</h3>
+            <p>Dominoes is the classic double-six domino game, adapted for Even Realities G2 glasses. Navigate with scroll, play with tap, and draw with double-tap.</p>
+
+            <h3>Launch</h3>
+            <p>When you start the app, you'll see the main menu with two options:</p>
+            <ul>
+              <li><strong>New Game</strong> — Start a new round against the CPU</li>
+              <li><strong>How to Play</strong> — View the quick rules reference</li>
+            </ul>
+
+            <h3>What This Covers</h3>
+            <p>This page describes the controls, rules, and gameplay as implemented in this build.</p>
+          </div>
+        </details>
+      </section>
+
+      <section class="section" id="controls">
+        <details>
+          <summary>Controls</summary>
+          <div class="section-content">
+            <p>Three gestures run the whole game:</p>
+
+            <div class="gesture-grid">
+              <div class="gesture-card">
+                <strong>Scroll (Up / Down)</strong>
+                Navigate between pieces in your hand, or move through menu items.
+              </div>
+
+              <div class="gesture-card">
+                <strong>Tap</strong>
+                Play the selected domino piece. In menus, confirms the highlighted option.
+              </div>
+
+              <div class="gesture-card">
+                <strong>Double Tap</strong>
+                Draw a piece from the boneyard. On the game over screen, returns to the main menu.
+              </div>
+            </div>
+
+            <h3>Tap Behavior by Context</h3>
+            <ul>
+              <li><strong>Menu:</strong> Select the highlighted menu item</li>
+              <li><strong>Playing (your turn):</strong> Play the currently selected piece</li>
+              <li><strong>Choose End:</strong> Tap = place on LEFT end, Double-tap = place on RIGHT end</li>
+              <li><strong>Game Over:</strong> Tap = new game, Double-tap = back to menu</li>
+              <li><strong>Rules Screen:</strong> Tap or double-tap to go back</li>
+            </ul>
+          </div>
+        </details>
+      </section>
+
+      <section class="section" id="gameplay">
+        <details>
+          <summary>Gameplay Flow</summary>
+          <div class="section-content">
+            <h3>Basic Turn Flow</h3>
+            <ol>
+              <li><strong>Scroll</strong> to highlight the piece you want to play</li>
+              <li><strong>Tap</strong> to play it on the board</li>
+              <li>If the piece can go on both ends, you'll be asked to choose: <strong>Tap = Left</strong>, <strong>Double-tap = Right</strong></li>
+              <li>If you can't play, <strong>double-tap</strong> to draw from the boneyard</li>
+            </ol>
+
+            <h3>Drawing from Boneyard</h3>
+            <p>When no piece in your hand matches the board, double-tap to draw. If the boneyard is empty and you can't play, your turn passes automatically.</p>
+
+            <h3>CPU Opponent</h3>
+            <p>The CPU plays automatically after your turn. A brief "CPU thinking..." message appears while it selects its move.</p>
+          </div>
+        </details>
+      </section>
+
+      <section class="section" id="rules">
+        <details>
+          <summary>Rules (Double-Six Dominoes)</summary>
+          <div class="section-content">
+            <h3>The Pieces</h3>
+            <p>A standard double-six set has 28 domino pieces. Each piece shows two values from 0 to 6.</p>
+
+            <h3>Setup</h3>
+            <ul>
+              <li>Each player receives <strong>7 pieces</strong></li>
+              <li>The remaining 14 pieces form the <strong>boneyard</strong> (draw pile)</li>
+              <li>The player holding the highest double starts first</li>
+            </ul>
+
+            <h3>Playing a Piece</h3>
+            <ul>
+              <li>Match one end of your piece to an open end of the chain on the board</li>
+              <li>If your piece matches both ends, you choose which end to place it on</li>
+              <li>If you can't match any end, you must draw from the boneyard</li>
+            </ul>
+
+            <h3>Winning</h3>
+            <ul>
+              <li>The first player to <strong>empty their hand</strong> wins the round</li>
+              <li>If neither player can move and the boneyard is empty, the player with the <strong>lowest pip count</strong> wins</li>
+              <li>The winner scores points equal to the total pips remaining in their opponent's hand</li>
+            </ul>
+
+            <div class="tip">
+              <strong>Tip:</strong> Try to play pieces that match both ends of the board — this gives you more flexibility on future turns.
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section class="section" id="tips">
+        <details>
+          <summary>Tips &amp; Strategy</summary>
+          <div class="section-content">
+            <h3>Playing Smart</h3>
+            <ul>
+              <li>Play <strong>doubles early</strong> — they're harder to play later since both ends have the same value</li>
+              <li>Try to keep a <strong>variety of values</strong> in your hand to maximise your options</li>
+              <li>Watch what the CPU draws — if it draws often, the boneyard is running low</li>
+              <li>If you're ahead on points, play <strong>high-value pieces</strong> to increase your opponent's remaining pip count</li>
+            </ul>
+
+            <h3>G2 Display</h3>
+            <ul>
+              <li>Your hand is shown at the <strong>bottom</strong> of the display</li>
+              <li>The board chain is shown in the <strong>center</strong> — when the chain is long, only the two ends are shown</li>
+              <li>The <strong>selected piece</strong> is highlighted with a brighter outline and an arrow below it</li>
+              <li>Scores, boneyard count, and CPU hand size are shown at the <strong>top</strong></li>
+            </ul>
+          </div>
+        </details>
+      </section>
+
+      <footer class="footer">
+        <p>Dominoes for Even Realities G2 | Classic Double-Six Rules</p>
+      </footer>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
+    <script>
+      function openSectionForHash(idOrEmpty) {
+        const id = idOrEmpty != null ? idOrEmpty : window.location.hash.substring(1);
+        if (!id) return;
+        const section = document.getElementById(id);
+        if (section) {
+          const details = section.querySelector('details');
+          if (details) details.setAttribute('open', '');
+        }
+      }
+      window.addEventListener('hashchange', function () { openSectionForHash(); });
+      document.addEventListener('click', function (e) {
+        const a = e.target.closest('a[href^="#"]');
+        if (!a) return;
+        const id = a.getAttribute('href').substring(1);
+        if (id) openSectionForHash(id);
+      });
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { openSectionForHash(); });
+      } else {
+        openSectionForHash();
+      }
+    </script>
   </body>
 </html>

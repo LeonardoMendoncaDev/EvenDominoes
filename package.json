@@ -1,7 +1,7 @@
 {
   "name": "domino",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.9.0",
   "description": "Classic domino game for Even Reality G2 smart glasses",
   "type": "module",
   "scripts": {
